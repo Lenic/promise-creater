@@ -44,14 +44,18 @@ function execResolver(resolver) {
     execQueue.call(self)
   }
 
-  resolver(onSuccess, onError)
+  try {
+    resolver(onSuccess, onError)
+  } catch (e) {
+    onError(e)
+  }
 }
 
 function execQueue() {
-  for (var i = this.$queue.length - 1; i >= 0; i--) {
+  for (var i = 0; i < this.$queue.length; i++) {
     var item = this.$queue[i]
     if (item) {
-      item.exec()
+      item.exec(this.$status, this.$value)
     }
   }
 }
@@ -66,19 +70,45 @@ function QueueItem(promise, onSuccess, onError) {
   this.$onError = onError
 }
 
-QueueItem.prototype.exec = function () {
-  if (this.$promise.status === PENDING) {
-    throw new Error('Called opportunity error: promise\'s status is pending.')
-  }
+QueueItem.prototype.exec = function (status, value) {
+  this.$promise.$status = status
+  this.$promise.$value = value
 
-  if (this.$promise.status === FULFILLED) {
+  if (this.$promise.$status === FULFILLED) {
     try {
       this.$onSuccess.call(null, this.$promise.$value)
     } catch (e) {
       this.$onError.call(null, e)
     }
 
-  } else if (this.$promise.status === REJECTED) {
+  } else if (this.$promise.$status === REJECTED) {
     this.$onError.call(null, this.$promise.$value)
   }
+
+  execQueue.call(this.$promise)
 }
+
+Promise.prototype.then = function (onSuccess, onError) {
+  if (typeof onSuccess !== 'function' && this.$status === FULFILLED ||
+      typeof onError !== 'function' && this.$status === REJECTED) {
+    return this
+  }
+
+  var self = this
+    , promise = new Promise()
+
+  this.$queue.push(new QueueItem(promise, onSuccess, onError))
+
+  if (this.$status !== PENDING) {
+    execResolver.call(promise, function (resolve, reject) {
+      if (self.$status === FULFILLED) {
+        resolve(self.$value)
+      } else {
+        reject(self.$value)
+      }
+    })
+  }
+
+  return promise
+}
+
