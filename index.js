@@ -124,7 +124,7 @@ Promise.prototype.catch = function (onError) {
 
 Promise.deferred = Promise.defer = function () {
   var result = {}
-  result.promise = new this(function (resolve, reject) {
+  result.promise = new Promise(function (resolve, reject) {
     result.resolve = resolve
     result.reject = reject
   })
