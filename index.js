@@ -106,6 +106,8 @@ Promise.prototype.then = function (onSuccess, onError) {
   this.$queue.push(new QueueItem(promise, onSuccess, onError))
 
   if (this.$status !== PENDING) {
+    execQueue.call(this)
+
     execResolver.call(promise, function (resolve, reject) {
       if (self.$status === FULFILLED) {
         resolve(self.$value)
