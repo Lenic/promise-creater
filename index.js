@@ -2,6 +2,7 @@
 const PENDING = 'PENDING'
 const FULFILLED = 'FULFILLED'
 const REJECTED = 'REJECTED'
+const EMPTY_FUNCTION = function() {}
 
 function Promise(resolver) {
   if (!(this instanceof Promise)) {
@@ -66,8 +67,8 @@ function QueueItem(promise, onSuccess, onError) {
   }
 
   this.$promise = promise
-  this.$onSuccess = onSuccess
-  this.$onError = onError
+  this.$onSuccess = onSuccess || EMPTY_FUNCTION
+  this.$onError = onError || EMPTY_FUNCTION
 }
 
 QueueItem.prototype.exec = function (status, value) {
@@ -76,7 +77,7 @@ QueueItem.prototype.exec = function (status, value) {
 
   if (this.$promise.$status === FULFILLED) {
     try {
-      this.$onSuccess.call(null, this.$promise.$value)
+      this.$promise.$value = this.$onSuccess.call(null, this.$promise.$value)
     } catch (e) {
       this.$onError.call(null, e)
     }
@@ -112,3 +113,6 @@ Promise.prototype.then = function (onSuccess, onError) {
   return promise
 }
 
+Promise.prototype.catch = function (onError) {
+  return this.then(null, onError)
+}
