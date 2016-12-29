@@ -2,7 +2,25 @@
 const PENDING = 'PENDING'
 const FULFILLED = 'FULFILLED'
 const REJECTED = 'REJECTED'
-const EMPTY_FUNCTION = function () { }
+const EMPTY_FUNCTION = function (item) { return item }
+
+function QueueItem (promise, onSuccess, onError) {
+  if (!(this instanceof QueueItem)) {
+    return new QueueItem(promise, onSuccess, onError)
+  }
+
+  this.$promise = promise
+  this.$onSuccess = onSuccess || EMPTY_FUNCTION
+  this.$onError = onError || EMPTY_FUNCTION
+}
+
+QueueItem.prototype.FULFILLED = function(value) {
+  execCallback.call(this.$promise, this.$onSuccess, value)
+}
+
+QueueItem.prototype.REJECTED = function(value) {
+  execCallback.call(this.$promise, this.$onError, value)
+}
 
 function Promise(resolver) {
   if (!(this instanceof Promise)) {
@@ -47,11 +65,9 @@ function execResolver(resolver) {
 }
 
 function execQueue(type, value) {
-  var self = this
-
-  if (type === FULFILLED && value.then && typeof value.then === 'function') {
-    execResolver.call(this, function () {
-      value.then.apply(value, arguments)
+  if (type === FULFILLED && value && typeof value.then === 'function') {
+    execResolver.call(this, function (resolve, reject) {
+      value.then.call(value, resolve, reject)
     })
 
     return
@@ -60,64 +76,43 @@ function execQueue(type, value) {
   this.$status = type
   this.$value = value
 
-  for (var i = 0; i < this.$queue.length; i++) {
-    var item = this.$queue[i]
+  for (var index = 0; index < this.$queue.length; index++) {
+    var item = this.$queue[index];
     if (item) {
-      item.exec(type, value)
+      item[type](value)
     }
   }
 }
 
-function execCallbackAsync(callback, value) {
+function execCallback(func, value) {
   var self = this
 
   setTimeout(function() {
     var result = null
     try {
-      result = callback(value)
+      result = func(value)
     } catch (e) {
       execQueue.call(self, REJECTED, e)
     }
 
-    if (res !== self) {
-      execQueue.call(self, FULFILLED, res);
-    } else {
-      execQueue.call(self, REJECTED, new Error('Cannot resolve promise with itself'));
-    }
-  }, 0);
-}
-
-function QueueItem(promise, onSuccess, onError) {
-  if (!(this instanceof QueueItem)) {
-    return new QueueItem(promise, onSuccess, onError)
-  }
-
-  this.$promise = promise
-  this.$onSuccess = onSuccess || EMPTY_FUNCTION
-  this.$onError = onError || EMPTY_FUNCTION
-}
-
-QueueItem.prototype.exec = function (status, value) {
-  var func = status === FULFILLED ? this.$onSuccess : this.$onError
-
-  execCallbackAsync.call(this.$promise, func, value)
+    execQueue.call(self, FULFILLED, result)
+  }, 4)
 }
 
 Promise.prototype.then = function (onSuccess, onError) {
   if (typeof onSuccess !== 'function' && this.$status === FULFILLED ||
-    typeof onError !== 'function' && this.$status === REJECTED) {
+      typeof onError !== 'function' && this.$status === REJECTED) {
     return this
   }
 
-  var self = this
-    , promise = new Promise()
+  var promise = new Promise()
 
   if (this.$status === PENDING) {
     this.$queue.push(new QueueItem(promise, onSuccess, onError))
+  } else if (this.$status === FULFILLED) {
+    execCallback.call(promise, onSuccess, this.$value)
   } else {
-    var func = this.$status === FULFILLED ? this.$onSuccess : this.$onError
-
-    execQueue.call(promise, func, this.$value)
+    execCallback.call(promise, onError, this.$value)
   }
 
   return promise
