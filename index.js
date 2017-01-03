@@ -1,7 +1,7 @@
 
-const PENDING = 'PENDING'
-const FULFILLED = 'FULFILLED'
-const REJECTED = 'REJECTED'
+var PENDING = 'PENDING'
+var FULFILLED = 'FULFILLED'
+var REJECTED = 'REJECTED'
 
 function QueueItem (promise, onSuccess, onError) {
   if (!(this instanceof QueueItem)) {
