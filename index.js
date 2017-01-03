@@ -2,7 +2,6 @@
 const PENDING = 'PENDING'
 const FULFILLED = 'FULFILLED'
 const REJECTED = 'REJECTED'
-const EMPTY_FUNCTION = function (item) { return item }
 
 function QueueItem (promise, onSuccess, onError) {
   if (!(this instanceof QueueItem)) {
@@ -10,8 +9,8 @@ function QueueItem (promise, onSuccess, onError) {
   }
 
   this.$promise = promise
-  this.$onSuccess = onSuccess || EMPTY_FUNCTION
-  this.$onError = onError || EMPTY_FUNCTION
+  this.$onSuccess = onSuccess && typeof onSuccess === 'function' ? onSuccess : function (item) { return item }
+  this.$onError = onError && typeof onError === 'function' ? onError : function (item) { throw item }
 }
 
 QueueItem.prototype.FULFILLED = function(value) {
@@ -64,13 +63,34 @@ function execResolver(resolver) {
   }
 }
 
-function execQueue(type, value) {
-  if (type === FULFILLED && value && typeof value.then === 'function') {
-    execResolver.call(this, function (resolve, reject) {
-      value.then.call(value, resolve, reject)
-    })
+function getThenMethod(value) {
+  var then = value && value.then
+  if (value && typeof value === 'object' && typeof then === 'function') {
+    return function (resolve, reject) {
+      then.call(value, resolve, reject)
+    }
+  } else {
+    return null
+  }
+}
 
-    return
+function execQueue(type, value) {
+  if (type === FULFILLED && (typeof value === 'object' || typeof value === 'function')) {
+    var then = null
+
+    try {
+      then = getThenMethod(value)
+    } catch (e) {
+      execQueue.call(this, REJECTED, e)
+
+      return
+    }
+
+    if (then) {
+      execResolver.call(this, then)
+
+      return
+    }
   }
 
   this.$status = type
@@ -93,9 +113,15 @@ function execCallback(func, value) {
       result = func(value)
     } catch (e) {
       execQueue.call(self, REJECTED, e)
+
+      return
     }
 
-    execQueue.call(self, FULFILLED, result)
+    if (result === self) {
+      execQueue.call(self, REJECTED, new TypeError('Can not return itself.'))
+    } else {
+      execQueue.call(self, FULFILLED, result)
+    }
   }, 4)
 }
 
