@@ -1,4 +1,16 @@
-var Promise = require('./core')
+var PromiseBase = require('./core')
+
+function Promise(resolver) {
+  if(!(this instanceof Promise)) {
+    return new Promise(resolver)
+  }
+
+  this.$base = new PromiseBase(resolver)
+}
+
+Promise.prototype.then = function (resolve, reject) {
+  return this.$base.then(resolve, reject)
+}
 
 Promise.prototype.catch = function (onError) {
   return this.then(null, onError)
