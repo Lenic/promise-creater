@@ -4,12 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "promises-aplus-tests index.js"
+    "test": "promises-aplus-tests index.js",
+    "build": "babel --presets es2015 core.es6 -o core.js",
+    "dev": "babel --presets es2015 core.es6 -o core.js && promises-aplus-tests promise.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "babel-cli": "^6.18.0",
+    "babel-preset-es2015": "^6.18.0",
     "promises-aplus-tests": "^2.1.2"
   }
 }
