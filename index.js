@@ -1,4 +1,4 @@
-var PromiseBase = require('./core')
+var PromiseBase = require('./core.es6')
 
 function Promise(resolver) {
   if(!(this instanceof Promise)) {
