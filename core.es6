@@ -5,6 +5,35 @@ const REJECTED = 'REJECTED'
 const DEFAULT_SUCCESS = v => v
 const DEFAULT_ERROR = e => { throw e }
 
+class ParameterResolver {
+  constructor(resolver, callback) {
+    this.$resolver = resolver
+    this.$callback = callback
+
+    this.$isCalled = false
+  }
+
+  callbackHandler(type, value) {
+    if (this.$isCalled) {
+      return
+    }
+    this.$isCalled = true
+
+    this.$callback(type, value)
+  }
+
+  exec() {
+    try {
+      this.$resolver(
+        value => this.callbackHandler(FULFILLED, value),
+        e => this.callbackHandler(REJECTED, e)
+      )
+    } catch (e) {
+      this.callbackHandler(REJECTED, e)
+    }
+  }
+}
+
 class Promise {
   constructor(resolver) {
     this.$status = PENDING
@@ -14,27 +43,7 @@ class Promise {
     this[`$${REJECTED}`] = []
 
     if (resolver) {
-      this.resolveParameter(resolver)
-    }
-  }
-
-  resolveParameter(resolver) {
-    let isCalled = false
-      , callback = (type, value) => {
-        if (isCalled)
-          return
-        isCalled = true
-
-        this.callQueue(type, value)
-      }
-
-    try {
-      resolver(
-        v => callback(FULFILLED, v),
-        e => callback(REJECTED, e)
-      )
-    } catch (e) {
-      callback(REJECTED, e)
+      new ParameterResolver(resolver, this.callQueue.bind(this)).exec()
     }
   }
 
@@ -48,9 +57,10 @@ class Promise {
 
     if (queueName === FULFILLED && (typeof value === 'object' || typeof value === 'function')) {
       if (typeof value === 'object' && typeof then === 'function') {
-        this.resolveParameter(function (resolve, reject) {
-          then.call(value, resolve, reject)
-        })
+        new ParameterResolver(
+          (resolve, reject) => then.call(value, resolve, reject),
+          this.callQueue.bind(this)
+        ).exec()
 
         return
       }
