@@ -6,7 +6,7 @@
   "scripts": {
     "test": "promises-aplus-tests index.js",
     "build": "babel --presets es2015 core.es6 -o core.js",
-    "dev": "babel --presets es2015 core.es6 -o core.js && promises-aplus-tests promise.js"
+    "dev": "babel --presets es2015 core.es6 -o core.js && promises-aplus-tests index.js"
   },
   "keywords": [],
   "author": "",
