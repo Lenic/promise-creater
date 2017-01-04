@@ -32,6 +32,12 @@ class ParameterResolver {
       this.callbackHandler(REJECTED, e)
     }
   }
+
+  static exec(resolver, callback) {
+    new ParameterResolver(resolver, callback).exec()
+
+    return
+  }
 }
 
 class Promise {
@@ -42,8 +48,10 @@ class Promise {
     this[`$${FULFILLED}`] = []
     this[`$${REJECTED}`] = []
 
+    this.callQueue = this.callQueue.bind(this)
+
     if (resolver) {
-      new ParameterResolver(resolver, this.callQueue.bind(this)).exec()
+      ParameterResolver.exec(resolver, this.callQueue)
     }
   }
 
@@ -57,12 +65,10 @@ class Promise {
 
     if (queueName === FULFILLED && (typeof value === 'object' || typeof value === 'function')) {
       if (typeof value === 'object' && typeof then === 'function') {
-        new ParameterResolver(
+        return ParameterResolver.exec(
           (resolve, reject) => then.call(value, resolve, reject),
-          this.callQueue.bind(this)
-        ).exec()
-
-        return
+          this.callQueue
+        )
       }
     }
 
